@@ -1,113 +1,178 @@
+import 'package:barberia/database/app_database.dart';
 import 'package:barberia/models/barbeiro.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/widgets.dart';
 
-class BarbeirosForm extends StatefulWidget {
+class Barbeiros extends StatefulWidget {
   @override
-  State<BarbeirosForm> createState() => _BarbeirosFormState();
+  State<Barbeiros> createState() => _BarbeirosFormState();
 }
 
-class _BarbeirosFormState extends State<BarbeirosForm> {
+class _BarbeirosFormState extends State<Barbeiros> {
+  List<Map<String, dynamic>> _allData = [];
+  bool _isLoading = true;
+  void _refreshData() async {
+    final data = await SQLHelper.getAllData();
+    setState(() {
+      _allData = data;
+      _isLoading = false;
+    });
+  }
+
   final TextEditingController _nomeController = TextEditingController();
-  final TextEditingController _servicosController = TextEditingController();
+  final TextEditingController _servicoController = TextEditingController();
   final TextEditingController _horaEntradaController = TextEditingController();
-  TimeOfDay _horaEntrada = TimeOfDay.now();
   final TextEditingController _horaSaidaController = TextEditingController();
-  TimeOfDay _horaSaida = TimeOfDay.now();
+
+  Future<void> _addData() async {
+    await SQLHelper.createData(_nomeController.text, _servicoController.text,
+        _horaEntradaController.text, _horaSaidaController.text);
+    _refreshData();
+  }
+
+  Future<void> _updateData(int id) async {
+    await SQLHelper.updateData(
+        id,
+        _nomeController.text,
+        _servicoController.text,
+        _horaEntradaController.text,
+        _horaSaidaController.text);
+    _refreshData();
+  }
+
+  void _deleteData(int id) async {
+    await SQLHelper.deleteData(id);
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        backgroundColor: Colors.redAccent,
+        content: Text("Deletado com sucesso!")));
+    _refreshData();
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _refreshData();
+  }
+
+  void showBottomSheet(int? id) async {
+    if (id != null) {
+      final existingData =
+          _allData.firstWhere((element) => element['id'] == id);
+      _nomeController.text = existingData['nome'];
+      _servicoController.text = existingData['servico'];
+    }
+    showModalBottomSheet(
+      elevation: 5,
+      isScrollControlled: true,
+      context: context,
+      builder: (_) => Container(
+        padding: EdgeInsets.only(
+          top: 30,
+          left: 15,
+          right: 15,
+          bottom: MediaQuery.of(context).viewInsets.bottom + 50,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            TextField(
+              controller: _nomeController,
+              decoration: InputDecoration(
+                border: OutlineInputBorder(),
+                hintText: "Nome: ",
+              ),
+            ),
+            SizedBox(height: 10),
+            TextField(
+              controller: _servicoController,
+              maxLines: 4,
+              decoration: InputDecoration(
+                border: OutlineInputBorder(),
+                hintText: "Serviços: ",
+              ),
+            ),
+            SizedBox(height: 10),
+            TextField(
+              controller: _horaEntradaController,
+              decoration: InputDecoration(
+                border: OutlineInputBorder(),
+                hintText: "Hora de Entrada: ",
+              ),
+            ),
+            SizedBox(height: 10),
+            TextField(
+              controller: _horaSaidaController,
+              decoration: InputDecoration(
+                border: OutlineInputBorder(),
+                hintText: "Hora de Saída: ",
+              ),
+            ),
+            SizedBox(height: 10),
+            Center(
+              child: ElevatedButton(
+                onPressed: () async {
+                  if (id == null) {
+                    await _addData();
+                  }
+                  if (id != null) {
+                    await _updateData(id);
+                  }
+                  _nomeController.text = "";
+                  _servicoController.text = "";
+                  _horaEntradaController.text = "";
+                  _horaSaidaController.text = "";
+
+                  Navigator.of(context).pop();
+                  print("Data Added");
+                },
+                child: Padding(
+                  padding: EdgeInsets.all(18),
+                  child: Text(
+                    id == null ? "Salvar Barbeiro" : "Editar Barbeiro",
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
+                  ),
+                ),
+              ),
+            )
+          ],
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.white,
       appBar: AppBar(
-        title: Text('Novo Barbeiro'),
+        title: Text("Lista de Barbeiros"),
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(30.0),
-        child: Column(children: <Widget>[
-          Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: TextField(
-              controller: _nomeController,
-              decoration: InputDecoration(
-                labelText: ('Nome:'),
+      body: _isLoading
+          ? Center(
+              child: CircularProgressIndicator(),
+            )
+          : ListView.builder(
+              itemCount: _allData.length,
+              itemBuilder: (context, index) => Card(
+                margin: EdgeInsets.all(15),
+                child: ListTile(
+                  title: Padding(
+                    padding: EdgeInsets.symmetric(vertical: 5),
+                    child: Text(
+                      _allData[index]['nome'],
+                      style: TextStyle(
+                        fontSize: 20,
+                      ),
+                    ),
+                  ),
+                  // subtitle: Text(),
+                ),
               ),
-              style: TextStyle(fontSize: 15.0),
             ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: TextField(
-              controller: _servicosController,
-              decoration: InputDecoration(
-                labelText: ('Serviços:'),
-              ),
-              style: TextStyle(fontSize: 15.0),
-            ),
-          ),
-          Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: TextField(
-                  controller: _horaEntradaController,
-                  decoration: InputDecoration(
-                      labelText: 'Começo Expediente:',
-                      suffixIcon: IconButton(
-                          icon: Icon(Icons.access_time),
-                          onPressed: () async {
-                            TimeOfDay? pickedTime = await showTimePicker(
-                                context: context, initialTime: _horaEntrada);
-
-                            if (pickedTime != null &&
-                                pickedTime != _horaEntrada) {
-                              setState(() {
-                                _horaEntrada = pickedTime;
-                                _horaEntradaController.text =
-                                    _horaEntrada.format(context);
-                              });
-                            }
-                          })))),
-          Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: TextField(
-                  controller: _horaSaidaController,
-                  decoration: InputDecoration(
-                      labelText: 'Final Expediente:',
-                      suffixIcon: IconButton(
-                          icon: Icon(Icons.access_time),
-                          onPressed: () async {
-                            TimeOfDay? pickedTime = await showTimePicker(
-                                context: context, initialTime: _horaSaida);
-
-                            if (pickedTime != null &&
-                                pickedTime != _horaSaida) {
-                              setState(() {
-                                _horaSaida = pickedTime;
-                                _horaSaidaController.text =
-                                    _horaSaida.format(context);
-                              });
-                            }
-                          })))),
-          Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: ElevatedButton(
-              child: Text('Salvar'),
-              onPressed: () {
-                final String nome = _nomeController.text;
-                final String servicos = _servicosController.text;
-                final String formattedString = _horaEntradaController.text;
-                TimeOfDay? horaEntrada = TimeOfDay(hour: 00, minute: 00);
-                final String formattedStringg = _horaSaidaController.text;
-                TimeOfDay? horaSaida = TimeOfDay(hour: 00, minute: 00);
-                final Barbeiro newBarbeiro = Barbeiro(
-                    id: 0,
-                    nome: nome,
-                    servicos: servicos,
-                    horaEntrada: horaEntrada,
-                    horaSaida: horaSaida);
-                Navigator.pop(context, newBarbeiro);
-              },
-            ),
-          )
-        ]),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => showBottomSheet(null),
+        child: Icon(Icons.add),
       ),
     );
   }

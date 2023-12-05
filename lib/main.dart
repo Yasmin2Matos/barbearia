@@ -1,13 +1,11 @@
-import 'package:barberia/database/app_database.dart';
-import 'package:barberia/models/barbeiro.dart';
-import 'package:barberia/screens/barbeiros.dart';
-import 'package:barberia/screens/barbeiros_form.dart';
 import 'package:barberia/screens/dashboard.dart';
 import 'package:flutter/material.dart';
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
-import 'package:flutter/material.dart';
-
-void main() {
+void main() async {
+  sqfliteFfiInit();
+  databaseFactory = databaseFactoryFfi;
+  Database database = await openDatabase('database_name.db');
   runApp(BytebankApp());
 }
 

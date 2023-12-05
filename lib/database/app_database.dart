@@ -1,49 +1,77 @@
-import 'package:barberia/models/barbeiro.dart';
-import 'package:path/path.dart';
-import 'package:sqflite/sqflite.dart';
+import 'package:sqflite_common/sqflite.dart' as sql;
+import 'package:sqflite_common/sqlite_api.dart';
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
-Future<Database> createDatabase() {
-  return getDatabasesPath().then((dbPath) {
-    final String path = join(dbPath, 'barbearia.db');
-    return openDatabase(path, onCreate: (db, version) {
-      db.execute('CREATE TABLE barbeiros('
-          'id INTEGER PRIMARY KEY,'
-          'nome TEXT, '
-          'servicos TEXT,'
-          'horaEntrada TEXT,'
-          'horaSaida TEXT'
-          ')');
-    }, version: 1);
-  });
+/* void main() async {
+  sqfliteFfiInit();
+  sql.DatabaseFactory databaseFactory = databaseFactoryFfi;
+  Database database = await openDatabase('database_name.db');
+  runApp(SQLHelper());
 }
 
-Future<int> save(Barbeiro barbeiro) {
-  return createDatabase().then((db) {
-    final Map<String, dynamic> barbeiroMap = Map();
-    barbeiroMap['id'] = barbeiro.id;
-    barbeiroMap['nome'] = barbeiro.nome;
-    barbeiroMap['servicos'] = barbeiro.servicos;
-    barbeiroMap['horaEntrada'] = barbeiro.horaEntrada;
-    barbeiroMap['horaSaida'] = barbeiro.horaSaida;
-    return db.insert('barbeiros', barbeiroMap);
-  });
-}
+void runApp(SQLHelper sqlHelper) {}*/
 
-/*Future<List<Barbeiro>> findAll() {
-  return createDatabase().then((db) {
-    return db.query('barbeiros').then((List<Map<String, dynamic>> maps) {
-      final List<Barbeiro> barbeiros = [];
-      for (Map<String, dynamic> map in maps) {
-        final Barbeiro barbeiro = Barbeiro(
-          map['id'],
-          map['nome'],
-          map['servicos'],
-          map['horaEntrada'],
-          map['horaSaida'],
-        );
-        barbeiros.add(barbeiro);
-      }
-      return barbeiros;
+class SQLHelper {
+  static Future<void> createTables(sql.Database database) async {
+    await database.execute("""CREATE TABLE data(
+      id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+      nome TEXT,
+      servico TEXT,
+      horaEntrada TEXT,
+      horaSaida TEXT,
+      createdAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )""");
+  }
+
+  static Future<sql.Database> db() async {
+    return sql.openDatabase("database_name.db", version: 1,
+        onCreate: (sql.Database database, int version) async {
+      await createTables(database);
     });
-  }); 
-} */
+  }
+
+  static Future<int> createData(
+      String nome, String servico, String horaEntrada, String horaSaida) async {
+    final db = await SQLHelper.db();
+    final data = {
+      'nome': nome,
+      'servico': servico,
+      'horaEntrada': horaEntrada,
+      'horaSaida': horaSaida
+    };
+    final id = await db.insert('data', data,
+        conflictAlgorithm: sql.ConflictAlgorithm.replace);
+    return id;
+  }
+
+  static Future<List<Map<String, dynamic>>> getAllData() async {
+    final db = await SQLHelper.db();
+    return db.query('data', orderBy: 'id');
+  }
+
+  static Future<List<Map<String, dynamic>>> getSingleData(int id) async {
+    final db = await SQLHelper.db();
+    return db.query('data', where: "id = ?", whereArgs: [id], limit: 1);
+  }
+
+  static Future<int> updateData(int id, String nome, String servico,
+      String horaEntrada, String horaSaida) async {
+    final db = await SQLHelper.db();
+    final data = {
+      'nome': nome,
+      'servico': servico,
+      'horaEntrada': horaEntrada,
+      'horaSaida': horaSaida
+    };
+    final result =
+        await db.update('data', data, where: "id = ?", whereArgs: [id]);
+    return result;
+  }
+
+  static Future<void> deleteData(int id) async {
+    final db = await SQLHelper.db();
+    try {
+      await db.delete('data', where: "id = ?", whereArgs: [id]);
+    } catch (e) {}
+  }
+}

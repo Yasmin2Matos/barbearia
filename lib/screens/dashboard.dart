@@ -1,4 +1,4 @@
-import 'package:barberia/screens/barbeiros.dart';
+import 'package:barberia/screens/barbeiros_form.dart';
 import 'package:flutter/material.dart';
 
 class Dashboard extends StatelessWidget {
